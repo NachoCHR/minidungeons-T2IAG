@@ -20,14 +20,17 @@ JavaSE9 al momento de crear el proyecto. Creé un nuevo proyecto e importé tant
 archivos de la carpeta src, el .jar de la carpeta lib y la carpeta dungeons con los mapas.
 2.- La forma más fácil de evaluar el código es mediante el uso de las tres clases principales
 en el paquete experiment:
+
 ● SimulationMode realiza un número de simulaciones de un agente IA
 específico en uno o más calabozos, y reporta los resultados como métricas y
 mapas de calor (heatmaps) de cada playthrough. Estos reportes también
 quedan guardados en una carpeta especificada en la variable outputFolder.
+
 ● DebugMode evalúa una simulación en un mapa, paso a paso, permitiendo a
 los jugadores observar lo que el agente realiza en cada acción, mostrando el
 mapa ASCII y el nivel de vida (HP) actual del jugador. Información adicional
 para el debugging puede incluirse, de ser necesaria.
+
 ● CompetitionMode tiene como objetivo evaluar como cada agente
 especificado en el array controllerNames se desempeña contra cada otro
 agente en un conjunto de métricas como tesoros recolectados, monstruos
@@ -36,6 +39,7 @@ internas donde los agentes creados por distintos usuarios compiten en una o
 más dimensiones monitoreadas por el sistema.
 3.- Implemente dos agentes para MiniDungeon, utilizando dos métodos de Inteligencia
 Artificial vistos en el curso.
+
 ● Hint: Ud puede utilizar métodos de IA con templates disponibles en Java
 como Best First Search, Monte Carlo Tree Search y Q-learning. Si desea,
 también puede implementar otros métodos híbridos como neuroevolución.
