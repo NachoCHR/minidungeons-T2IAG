@@ -25,6 +25,7 @@ public class CompetitionMode {
 	String outputFolder = "./testResults/";	// this folder needs to already exist, it will not be created by the program
 	
 	String[] controllerNames = {
+		"controllers.MonteCarloController",
 		"controllers.RandomController",
 		"controllers.ZombieController",
 		"controllers.RoombaController",
@@ -73,10 +74,15 @@ public class CompetitionMode {
 			for(int c=0;c<controllerNames.length;c++){
 				int actions = 0;
 				while(!testInstances[c].isGameHalted() && actions<maxActions){
+					System.out.println("Before GetNextAction");
 					testInstances[c].updateGame(testAgents[c].getNextAction());
+					System.out.println("After GetNextAction");
 					actions++;
+					System.out.println("Action completed: " + c);
+
 				}
 				updateMetrics(c, r, testInstances[c], actions);
+				System.out.println("Simulation completed");
 			}
 		}
 		System.out.println(printFullCompetitionMetrics(maxActions));
