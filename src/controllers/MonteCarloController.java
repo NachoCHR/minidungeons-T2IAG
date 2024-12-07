@@ -22,27 +22,48 @@ public class MonteCarloController extends Controller {
     }
 
     // Obtener las posiciones de los elementos de interés
-    public List<Point2D> getPossibleMoves(PlayMap current) {
-        List<Point2D> moves = new ArrayList<>();
-        int heroX = current.getHero().getX();
-        System.out.println("Posición X del Hero es: " + heroX);
-        int heroY = current.getHero().getY();
-        System.out.println("Posición Y del Hero es: " + heroY);
-
-        // Añadir movimientos válidos: Up, Right, Down, Left
-        if (current.isValidMove(heroX, heroY - 1)) moves.add(new Point2D(heroX, heroY - 1)); // UP
-        if (current.isValidMove(heroX + 1, heroY)) moves.add(new Point2D(heroX + 1, heroY)); // RIGHT
-        if (current.isValidMove(heroX, heroY + 1)) moves.add(new Point2D(heroX, heroY + 1)); // DOWN
-        if (current.isValidMove(heroX - 1, heroY)) moves.add(new Point2D(heroX - 1, heroY)); // LEFT
-        System.out.println("Possible moves: " + moves);
-
-        return moves;
+    public Vector<Integer> generateValidMoves(PlayMap current){
+        Vector<Integer> result = new Vector<Integer>();
+        for(int i = 0; i < 4; i++){
+            Point2D newMove = current.getHero().getNextPosition(i);
+            if(current.isValidMove(newMove)){
+                result.add(i);
+            }
+        }
+        return result;
     }
+
+    private int chooseRandomMove(Vector<Integer> validMoves, int lastMove) {
+        if (validMoves.isEmpty()) {
+            System.err.println("No valid moves available.");
+            return -1; // Indicador de que no hay movimientos válidos
+        }
+
+        Random random = new Random();
+        int move;
+
+        do {
+            move = validMoves.get(random.nextInt(validMoves.size()));
+        } while (validMoves.size() > 1 && move == getOppositeMove(lastMove));
+
+        return move;
+    }
+
+    private int getOppositeMove(int move) {
+        switch (move) {
+            case 0: return 1; // Arriba -> Abajo
+            case 1: return 0; // Abajo -> Arriba
+            case 2: return 3; // Izquierda -> Derecha
+            case 3: return 2; // Derecha -> Izquierda
+            default: return -1; // Movimiento inválido
+        }
+    }
+
     public int getNextAction() {
         System.out.println("Entering getNextAction");
         try {
             PlayMap currentState = map.clone();  // Estado actual del juego
-            MCTSNode rootNode = new MCTSNode(currentState, null);  // Nodo raíz que representa el estado inicial
+            MCTSNode rootNode = new MCTSNode(currentState, null, -1);  // Nodo raíz que representa el estado inicial
 
             // Ejecutar simulaciones para construir el árbol de MCTS
             for (int i = 0; i < SIMULATION_COUNT; i++) {
@@ -57,7 +78,7 @@ public class MonteCarloController extends Controller {
 
             // Seleccionar la mejor acción basado en las visitas
             MCTSNode bestNode = bestChild(rootNode);
-            int action = translateToAction(bestNode.getState().getHero().getPosition());
+            int action = bestNode.getAction();
             System.out.println("Selected action: " + action);
             return action;
         } catch (Exception e) {
@@ -95,14 +116,14 @@ public class MonteCarloController extends Controller {
 
     // Fase de expansión: agrega un nuevo nodo hijo basado en un movimiento
     private MCTSNode expandNode(MCTSNode parent) {
-        List<Point2D> possibleMoves = getPossibleMoves(parent.getState());
+        Vector<Integer> possibleMoves = generateValidMoves(parent.getState());
         MCTSNode bestChild = null;
         double bestReward = Double.NEGATIVE_INFINITY;
 
-        for (Point2D move : possibleMoves) {
+        for (int move : possibleMoves) {
             PlayMap newState = parent.getState().clone();
-            newState.updateGame(translateToAction(move));
-            MCTSNode newChild = parent.addChild(newState);
+            newState.updateGame(move);
+            MCTSNode newChild = parent.addChild(newState, move);
 
             double reward = simulate(newState);
             if (reward > bestReward) {
@@ -120,13 +141,19 @@ public class MonteCarloController extends Controller {
         PlayMap simulationState = state.clone();
         System.out.println("Se clona el estado");
 
+        int lastMove = -1;  // Inicialmente, no hay movimientos previos
+
         while (!simulationState.isGameHalted()) {
             System.out.println("------SIMULACIÓN EN BUCLE----");
-            List<Point2D> possibleMoves = getPossibleMoves(simulationState);
-            int randomMove = chooseRandomMove(possibleMoves);
+            Vector<Integer> possibleMoves = generateValidMoves(simulationState);
+            int randomMove = chooseRandomMove(possibleMoves, lastMove); // Usa el último movimiento
             System.out.println("Chosen action: " + randomMove);
+            System.out.println("GameHalted de la simulación:" + simulationState.isGameHalted());
 
             simulationState.updateGame(randomMove);
+
+            // Actualiza el historial
+            lastMove = randomMove;
 
             System.out.println("Hero position: " + simulationState.getHero().getPosition());
             System.out.println("Hero HP: " + simulationState.getHero().getHitpoints());
@@ -181,15 +208,6 @@ public class MonteCarloController extends Controller {
         }
         return 0.0;  // Estado intermedio
     }
-
-    // Función para traducir un movimiento a una acción
-    private int translateToAction(Point2D move) {
-        if ((int)move.x == 0 && (int)move.y == -1) return 0;  // Arriba
-        if ((int)move.x == 1 && (int)move.y == 0) return 1;   // Derecha
-        if ((int)move.x == 0 && (int)move.y == 1) return 2;   // Abajo
-        if ((int)move.x == -1 && (int)move.y == 0) return 3;  // Izquierda
-        return -1;  // Acción no válida
-    }
 }
 
 class MCTSNode {
@@ -198,15 +216,18 @@ class MCTSNode {
     private List<MCTSNode> children;
     private int visits;
     private double reward;  // Acumulación de recompensa
+    private  int action;
 
-    public MCTSNode(PlayMap state, MCTSNode parent) {
+    public MCTSNode(PlayMap state, MCTSNode parent, int action) {
         this.state = state;
         this.parent = parent;
         this.children = new ArrayList<>();
         this.visits = 0;
         this.reward = 0;
+        this.action = action;
     }
 
+    public int getAction(){ return action; }
     public PlayMap getState() { return state;}
     public MCTSNode getParent() { return parent; }
     public List<MCTSNode> getChildren() { return children; }
@@ -216,8 +237,8 @@ class MCTSNode {
     public void incrementVisits() { visits++; }
     public void addReward(double value) { reward += value; }
 
-    public MCTSNode addChild(PlayMap state) {
-        MCTSNode child = new MCTSNode(state, this);
+    public MCTSNode addChild(PlayMap state, int act) {
+        MCTSNode child = new MCTSNode(state, this, act);
         children.add(child);
         return child;
     }
